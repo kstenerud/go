@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
+	"cmd/compile/warnings"
 	"cmd/internal/bio"
 	"cmd/internal/dwarf"
 	"cmd/internal/obj"
@@ -219,6 +220,7 @@ func Main(archInit func(*Arch)) {
 	flag.BoolVar(&flag_msan, "msan", false, "build code compatible with C/C++ memory sanitizer")
 	flag.BoolVar(&dolinkobj, "dolinkobj", true, "generate linker-specific objects; if false, some invalid code may compile")
 	flag.BoolVar(&nolocalimports, "nolocalimports", false, "reject local (relative) imports")
+	flag.BoolVar(&warnunused, "warnunused", false, "Treat unused labels, vars and imports as warnings instead of errors")
 	flag.StringVar(&outfile, "o", "", "write output to `file`")
 	flag.StringVar(&myimportpath, "p", "", "set expected package import `path`")
 	flag.BoolVar(&writearchive, "pack", false, "write to file.a instead of file.o")
@@ -252,6 +254,8 @@ func Main(archInit func(*Arch)) {
 	// record flags that don't, since that would cause spurious
 	// changes in the binary.)
 	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists")
+
+	warnings.TreatUnusedAsWarning(warnunused)
 
 	Ctxt.Flag_shared = flag_dynlink || flag_shared
 	Ctxt.Flag_dynlink = flag_dynlink
@@ -1165,10 +1169,16 @@ func pkgnotused(lineno src.XPos, path string, name string) {
 	if i := strings.LastIndex(elem, "/"); i >= 0 {
 		elem = elem[i+1:]
 	}
+
+	reportUnused := yyerrorl
+	if warnings.IsUnusedTreatedAsWarning() {
+		reportUnused = yywarnl
+	}
+
 	if name == "" || elem == name {
-		yyerrorl(lineno, "imported and not used: %q", path)
+		reportUnused(lineno, "imported and not used: %q", path)
 	} else {
-		yyerrorl(lineno, "imported and not used: %q as %s", path, name)
+		reportUnused(lineno, "imported and not used: %q as %s", path, name)
 	}
 }
 
