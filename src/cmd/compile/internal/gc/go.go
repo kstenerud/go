@@ -100,6 +100,8 @@ var safemode bool
 
 var nolocalimports bool
 
+var warnunused bool
+
 var Debug [256]int
 
 var debugstr string
