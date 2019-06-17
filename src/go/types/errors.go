@@ -101,6 +101,10 @@ func (check *Checker) softErrorf(pos token.Pos, format string, args ...interface
 	check.err(pos, check.sprintf(format, args...), true)
 }
 
+func (check *Checker) softWarnf(pos token.Pos, format string, args ...interface{}) {
+	fmt.Printf("%v: Warning: %s\n", check.fset.Position(pos), fmt.Sprintf(format, args...))
+}
+
 func (check *Checker) invalidAST(pos token.Pos, format string, args ...interface{}) {
 	check.errorf(pos, "invalid AST: "+format, args...)
 }
