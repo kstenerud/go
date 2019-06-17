@@ -4,7 +4,10 @@
 
 package syntax
 
-import "fmt"
+import (
+	"cmd/compile/warnings"
+	"fmt"
+)
 
 // TODO(gri) consider making this part of the parser code
 
@@ -41,7 +44,11 @@ func checkBranches(body *BlockStmt, errh ErrorHandler) {
 	for _, l := range ls.labels {
 		if !l.used {
 			l := l.lstmt.Label
-			ls.err(l.Pos(), "label %s defined and not used", l.Value)
+			if warnings.IsUnusedTreatedAsError() {
+				ls.err(l.Pos(), "label %s defined and not used", l.Value)
+			} else {
+				fmt.Printf("%v: Warning: label %s defined and not used\n", l.Pos(), l.Value)
+			}
 		}
 	}
 }
