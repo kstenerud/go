@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/compile/warnings"
 	"cmd/internal/objabi"
 	"cmd/internal/src"
 	"crypto/md5"
@@ -118,6 +119,23 @@ func sameline(a, b src.XPos) bool {
 	p := Ctxt.PosTable.Pos(a)
 	q := Ctxt.PosTable.Pos(b)
 	return p.Base() == q.Base() && p.Line() == q.Line()
+}
+
+func yywarnl(pos src.XPos, format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+
+	// only one of multiple equal non-syntax errors per line
+	// (flusherrors shows only one of them, so we filter them
+	// here as best as we can (they may not appear in order)
+	// so that we don't count them here and exit early, and
+	// then have nothing to show for.)
+	if sameline(lasterror.other, pos) && lasterror.msg == msg {
+		return
+	}
+	lasterror.other = pos
+	lasterror.msg = msg
+
+	fmt.Printf("%v: Warning: %s\n", linestr(pos), fmt.Sprintf(format, args...))
 }
 
 func yyerrorl(pos src.XPos, format string, args ...interface{}) {
@@ -301,9 +319,14 @@ func importdot(opkg *types.Pkg, pack *Node) {
 		n++
 	}
 
+	reportUnused := yyerrorl
+	if warnings.IsUnusedTreatedAsWarning() {
+		reportUnused = yywarnl
+	}
+
 	if n == 0 {
 		// can't possibly be used - there were no symbols
-		yyerrorl(pack.Pos, "imported and not used: %q", opkg.Path)
+		reportUnused(pack.Pos, "imported and not used: %q", opkg.Path)
 	}
 }
 

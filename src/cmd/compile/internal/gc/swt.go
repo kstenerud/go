@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/src"
+	"cmd/compile/warnings"
 	"sort"
 )
 
@@ -28,11 +29,16 @@ func typecheckTypeSwitch(n *Node) {
 		t = nil
 	}
 
+	reportUnused := yyerrorl
+	if warnings.IsUnusedTreatedAsWarning() {
+		reportUnused = yywarnl
+	}
+
 	// We don't actually declare the type switch's guarded
 	// declaration itself. So if there are no cases, we won't
 	// notice that it went unused.
 	if v := n.Left.Left; v != nil && !v.isBlank() && n.List.Len() == 0 {
-		yyerrorl(v.Pos, "%v declared but not used", v.Sym)
+		reportUnused(v.Pos, "%v declared but not used", v.Sym)
 	}
 
 	var defCase, nilCase *Node
