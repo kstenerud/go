@@ -12,6 +12,7 @@ import (
 	"cmd/compile/internal/logopt"
 	"cmd/compile/internal/ssa"
 	"cmd/compile/internal/types"
+	"cmd/compile/warnings"
 	"cmd/internal/bio"
 	"cmd/internal/dwarf"
 	"cmd/internal/goobj2"
@@ -246,6 +247,7 @@ func Main(archInit func(*Arch)) {
 		flag.BoolVar(&flag_msan, "msan", false, "build code compatible with C/C++ memory sanitizer")
 	}
 	flag.BoolVar(&nolocalimports, "nolocalimports", false, "reject local (relative) imports")
+	flag.BoolVar(&warnunused, "warnunused", false, "Treat unused labels, vars and imports as warnings instead of errors")
 	flag.StringVar(&outfile, "o", "", "write output to `file`")
 	flag.StringVar(&myimportpath, "p", "", "set expected package import `path`")
 	flag.BoolVar(&writearchive, "pack", false, "write to file.a instead of file.o")
@@ -321,6 +323,8 @@ func Main(archInit func(*Arch)) {
 		maxStackVarSize = 128 * 1024
 		maxImplicitStackVarSize = 16 * 1024
 	}
+
+	warnings.TreatUnusedAsWarning(warnunused)
 
 	Ctxt.Flag_shared = flag_dynlink || flag_shared
 	Ctxt.Flag_dynlink = flag_dynlink
@@ -1337,10 +1341,16 @@ func pkgnotused(lineno src.XPos, path string, name string) {
 	if i := strings.LastIndex(elem, "/"); i >= 0 {
 		elem = elem[i+1:]
 	}
+
+	reportUnused := yyerrorl
+	if warnings.IsUnusedTreatedAsWarning() {
+		reportUnused = yywarnl
+	}
+
 	if name == "" || elem == name {
-		yyerrorl(lineno, "imported and not used: %q", path)
+		reportUnused(lineno, "imported and not used: %q", path)
 	} else {
-		yyerrorl(lineno, "imported and not used: %q as %s", path, name)
+		reportUnused(lineno, "imported and not used: %q as %s", path, name)
 	}
 }
 
