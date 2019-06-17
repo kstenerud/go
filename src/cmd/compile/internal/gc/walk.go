@@ -7,6 +7,7 @@ package gc
 import (
 	"cmd/compile/internal/types"
 	"cmd/internal/obj"
+	"cmd/compile/warnings"
 	"cmd/internal/objabi"
 	"cmd/internal/sys"
 	"encoding/binary"
@@ -43,6 +44,11 @@ func walk(fn *Node) {
 		}
 	}
 
+	reportUnused := yyerrorl
+	if warnings.IsUnusedTreatedAsWarning() {
+		reportUnused = yywarnl
+	}
+
 	for _, ln := range fn.Func.Dcl {
 		if ln.Op != ONAME || (ln.Class() != PAUTO && ln.Class() != PAUTOHEAP) || ln.Sym.Name[0] == '&' || ln.Name.Used() {
 			continue
@@ -51,10 +57,10 @@ func walk(fn *Node) {
 			if defn.Left.Name.Used() {
 				continue
 			}
-			yyerrorl(defn.Left.Pos, "%v declared but not used", ln.Sym)
+			reportUnused(defn.Left.Pos, "%v declared but not used", ln.Sym)
 			defn.Left.Name.SetUsed(true) // suppress repeats
 		} else {
-			yyerrorl(ln.Pos, "%v declared but not used", ln.Sym)
+			reportUnused(ln.Pos, "%v declared but not used", ln.Sym)
 		}
 	}
 

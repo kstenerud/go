@@ -5,6 +5,7 @@
 package types
 
 import (
+	"cmd/compile/warnings"
 	"fmt"
 	"go/ast"
 	"go/constant"
@@ -600,6 +601,11 @@ func (check *Checker) unusedImports() {
 	// any of its exported identifiers. To import a package solely for its side-effects
 	// (initialization), use the blank identifier as explicit package name."
 
+	reportUnused := check.softErrorf
+	if warnings.IsUnusedTreatedAsWarning() {
+		reportUnused = check.softWarnf
+	}
+
 	// check use of regular imported packages
 	for _, scope := range check.pkg.scope.children /* file scopes */ {
 		for _, obj := range scope.elems {
@@ -610,9 +616,9 @@ func (check *Checker) unusedImports() {
 					path := obj.imported.path
 					base := pkgName(path)
 					if obj.name == base {
-						check.softErrorf(obj.pos, "%q imported but not used", path)
+						reportUnused(obj.pos, "%q imported but not used", path)
 					} else {
-						check.softErrorf(obj.pos, "%q imported but not used as %s", path, obj.name)
+						reportUnused(obj.pos, "%q imported but not used as %s", path, obj.name)
 					}
 				}
 			}
@@ -622,7 +628,7 @@ func (check *Checker) unusedImports() {
 	// check use of dot-imported packages
 	for _, unusedDotImports := range check.unusedDotImports {
 		for pkg, pos := range unusedDotImports {
-			check.softErrorf(pos, "%q imported but not used", pkg.path)
+			reportUnused(pos, "%q imported but not used", pkg.path)
 		}
 	}
 }
