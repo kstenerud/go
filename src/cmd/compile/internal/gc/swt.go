@@ -6,6 +6,7 @@ package gc
 
 import (
 	"cmd/compile/internal/types"
+	"cmd/compile/warnings"
 	"fmt"
 	"sort"
 )
@@ -62,6 +63,11 @@ func typecheckswitch(n *Node) {
 	var top int
 	var t *types.Type
 
+	reportUnused := yyerrorl
+	if warnings.IsUnusedTreatedAsWarning() {
+		reportUnused = yywarnl
+	}
+
 	if n.Left != nil && n.Left.Op == OTYPESW {
 		// type switch
 		top = Etype
@@ -74,7 +80,7 @@ func typecheckswitch(n *Node) {
 			// We don't actually declare the type switch's guarded
 			// declaration itself. So if there are no cases, we
 			// won't notice that it went unused.
-			yyerrorl(v.Pos, "%v declared and not used", v.Sym)
+			reportUnused(v.Pos, "%v declared and not used", v.Sym)
 		}
 	} else {
 		// expression switch
