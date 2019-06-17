@@ -5,6 +5,7 @@
 package types
 
 import (
+	"cmd/compile/warnings"
 	"go/ast"
 	"go/token"
 )
@@ -32,10 +33,15 @@ func (check *Checker) labels(body *ast.BlockStmt) {
 		check.errorf(jmp.Label.Pos(), msg, name)
 	}
 
+	reportUnused := check.softErrorf
+	if warnings.IsUnusedTreatedAsWarning() {
+		reportUnused = check.softWarnf
+	}
+
 	// spec: "It is illegal to define a label that is never used."
 	for _, obj := range all.elems {
 		if lbl := obj.(*Label); !lbl.used {
-			check.softErrorf(lbl.pos, "label %s declared but not used", lbl.name)
+			reportUnused(lbl.pos, "label %s declared but not used", lbl.name)
 		}
 	}
 }
