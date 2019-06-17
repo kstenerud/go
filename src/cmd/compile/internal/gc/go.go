@@ -116,6 +116,8 @@ var decldepth int32
 
 var nolocalimports bool
 
+var warnunused bool
+
 var Debug [256]int
 
 var debugstr string
