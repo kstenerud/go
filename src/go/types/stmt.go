@@ -7,6 +7,7 @@
 package types
 
 import (
+	"cmd/compile/warnings"
 	"go/ast"
 	"go/constant"
 	"go/token"
@@ -64,8 +65,14 @@ func (check *Checker) usage(scope *Scope) {
 	sort.Slice(unused, func(i, j int) bool {
 		return unused[i].pos < unused[j].pos
 	})
+
+	reportUnused := check.softErrorf
+	if warnings.IsUnusedTreatedAsWarning() {
+		reportUnused = check.softWarnf
+	}
+
 	for _, v := range unused {
-		check.softErrorf(v.pos, "%s declared but not used", v.name)
+		reportUnused(v.pos, "%s declared but not used", v.name)
 	}
 
 	for _, scope := range scope.children {
@@ -650,6 +657,11 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 			check.closeScope()
 		}
 
+		reportUnused := check.softErrorf
+		if warnings.IsUnusedTreatedAsWarning() {
+			reportUnused = check.softWarnf
+		}
+
 		// If lhs exists, we must have at least one lhs variable that was used.
 		if lhs != nil {
 			var used bool
@@ -660,7 +672,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
 				v.used = true // avoid usage error when checking entire function
 			}
 			if !used {
-				check.softErrorf(lhs.Pos(), "%s declared but not used", lhs.Name)
+				reportUnused(lhs.Pos(), "%s declared but not used", lhs.Name)
 			}
 		}
 
